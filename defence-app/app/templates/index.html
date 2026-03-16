@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Defence App - pfSense 日志 AI 分析</title>
+  <link rel="stylesheet" href="/static/style.css?v={{ asset_version }}" />
+</head>
+<body>
+  <main
+    class="container"
+    data-auto-refresh-seconds="{{ auto_refresh_seconds }}"
+    data-default-window-minutes="{{ default_window_minutes }}"
+  >
+    <section class="hero">
+      <div>
+        <h1>pfSense 日志 AI 分析平台</h1>
+        <p class="desc">支持日志检索、可配置间隔的自动分析、自定义时间分析，以及按勾选日志直接发起 AI 总结。</p>
+      </div>
+      <div>
+        <div id="systemStatus" class="status-banner status-neutral">系统状态加载中...</div>
+        <form method="post" action="/logout" style="margin-top: 10px; text-align: right;">
+          <button type="submit" class="secondary-btn">退出登录</button>
+        </form>
+      </div>
+    </section>
+
+    <div class="app-shell">
+      <aside class="sidebar card">
+        <div class="section-head">
+          <div>
+            <h2>功能菜单</h2>
+            <p class="section-desc">左侧切换日志检索与 AI 分析视图。</p>
+          </div>
+        </div>
+        <div class="menu-list">
+          <button id="menuSearch" class="menu-btn is-active" data-view="searchView">查找日志</button>
+          <button id="menuAi" class="menu-btn" data-view="aiView">AI分析</button>
+          <button id="menuCleanup" class="menu-btn" data-view="cleanupView">删除日志</button>
+        </div>
+        <div class="summary-panel compact-panel">
+          <h3>已选日志</h3>
+          <div id="selectedCountText" class="summary-content empty-state">当前未勾选任何日志。</div>
+        </div>
+      </aside>
+
+      <section class="content-area">
+        <section id="searchView" class="view-panel">
+          <div class="card">
+            <div class="section-head">
+              <div>
+                <h2>查找日志</h2>
+                <p class="section-desc">按 IP 或时间范围检索日志，并勾选需要提交给 AI 的日志。</p>
+              </div>
+            </div>
+
+            <div class="grid">
+              <label>来源 IP
+                <input id="searchIp" placeholder="例如 192.168.1.1，前缀可填 192.168" />
+              </label>
+              <label>来源 IP 匹配方式
+                <select id="searchIpMode">
+                  <option value="exact">精确匹配</option>
+                  <option value="prefix">前缀匹配</option>
+                </select>
+              </label>
+              <label>目标 IP
+                <input id="searchDestinationIp" placeholder="例如 8.8.8.8，前缀可填 10.0" />
+              </label>
+              <label>目标 IP 匹配方式
+                <select id="searchDestinationIpMode">
+                  <option value="exact">精确匹配</option>
+                  <option value="prefix">前缀匹配</option>
+                </select>
+              </label>
+              <label>屏蔽来源 IP / 前缀
+                <input id="searchExcludeIps" placeholder="例如 192,10.0，多个用逗号分隔" />
+              </label>
+              <label>开始时间
+                <input id="searchStart" type="datetime-local" />
+              </label>
+              <label>结束时间
+                <input id="searchEnd" type="datetime-local" />
+              </label>
+              <label>返回条数
+                <input id="searchSize" type="number" value="100" min="1" max="1000" />
+              </label>
+            </div>
+
+            <div class="row">
+              <button id="searchBtn">查询日志</button>
+              <button id="analyzeSearchRangeBtn" class="secondary-btn">分析当前查询条件</button>
+              <button id="selectAllLogsBtn" class="secondary-btn">全选当前结果</button>
+              <button id="clearSelectedLogsBtn" class="secondary-btn">清空已选</button>
+              <button id="analyzeSelectedBtn">分析已选日志</button>
+            </div>
+
+            <div id="searchStatus" class="status-banner status-neutral">等待查询。</div>
+            <div id="searchMeta" class="meta chips"></div>
+            <div id="searchPagination" class="pagination-bar">
+              <button id="searchPrevBtn" class="secondary-btn" disabled>上一页</button>
+              <div id="searchPaginationInfo" class="pagination-info">未开始分页查询。</div>
+              <button id="searchNextBtn" class="secondary-btn" disabled>下一页</button>
+            </div>
+            <div id="searchResult" class="result-list empty-state">暂无查询结果。</div>
+
+          </div>
+        </section>
+
+        <section id="aiView" class="view-panel is-hidden">
+          <div class="card">
+            <div class="section-head">
+              <div>
+                <h2>AI分析</h2>
+                <p class="section-desc">支持自动分析设置、最近窗口分析、自定义时间分析，以及对已勾选日志直接生成 AI 总结。</p>
+              </div>
+            </div>
+
+            <div class="subsection">
+              <div class="section-subhead">
+                <h3>自动分析设置</h3>
+                <span class="muted">可设置是否启用 AI 自动分析、分析间隔，以及自动分析时要排除的日志规则</span>
+              </div>
+              <div class="row">
+                <label class="toggle-label">
+                  <input id="autoAnalysisEnabled" type="checkbox" />
+                  <span>启用 AI 自动分析</span>
+                </label>
+                <label>自动分析间隔（分钟）
+                  <input id="autoAnalysisInterval" type="number" value="{{ default_window_minutes }}" min="1" max="1440" />
+                </label>
+                <button id="saveAutoAnalysisSettingsBtn">保存自动分析设置</button>
+              </div>
+              <div class="grid">
+                <label>排除来源 IP / 前缀
+                  <input id="autoExcludeSourceIps" placeholder="例如 192.168,10.0，多个用逗号分隔" />
+                </label>
+                <label>排除目标 IP / 前缀
+                  <input id="autoExcludeDestinationIps" placeholder="例如 172.16,8.8.8" />
+                </label>
+                <label>排除动作类型
+                  <input id="autoExcludeActions" placeholder="例如 block,pass,reject" />
+                </label>
+                <label>排除消息关键词
+                  <input id="autoExcludeKeywords" placeholder="例如 healthcheck,test,allowlist" />
+                </label>
+              </div>
+              <div id="autoAnalysisStatus" class="status-banner status-neutral">自动分析设置加载中...</div>
+              <div id="autoAnalysisMeta" class="meta chips"></div>
+            </div>
+
+            <div class="subsection">
+              <div class="section-subhead">
+                <h3>最近窗口自动分析</h3>
+                <span class="muted">系统会按已保存的自动分析设置执行，并支持手动刷新或立即执行</span>
+              </div>
+              <div class="row">
+                <label>检测窗口（分钟）
+                  <input id="detectMinutes" type="number" value="{{ default_window_minutes }}" min="1" max="1440" />
+                </label>
+                <button id="manualDetectBtn">立即分析最近窗口</button>
+                <button id="refreshLatestBtn" class="secondary-btn">刷新最新结果</button>
+              </div>
+              <div id="detectStatus" class="status-banner status-neutral">等待检测。</div>
+              <div id="detectMeta" class="meta chips"></div>
+              <div class="summary-panel">
+                <h3>自动分析 AI 总结</h3>
+                <div id="aiSummary" class="summary-content empty-state">暂无检测结果。</div>
+              </div>
+              <div class="section-subhead">
+                <h3>可疑事件</h3>
+                <span class="muted">按严重级别和命中规则排序</span>
+              </div>
+              <div id="detectResult" class="result-list empty-state">暂无可疑事件。</div>
+            </div>
+
+            <div class="subsection">
+              <div class="section-subhead">
+                <h3>自定义时间分析</h3>
+                <span class="muted">按你指定的时间范围拉取日志并直接生成 AI 结论</span>
+              </div>
+              <div class="grid">
+                <label>开始时间
+                  <input id="rangeStart" type="datetime-local" />
+                </label>
+                <label>结束时间
+                  <input id="rangeEnd" type="datetime-local" />
+                </label>
+                <label>来源 IP
+                  <input id="rangeIp" placeholder="留空表示分析全部来源 IP" />
+                </label>
+                <label>来源 IP 匹配方式
+                  <select id="rangeIpMode">
+                    <option value="exact">精确匹配</option>
+                    <option value="prefix">前缀匹配</option>
+                  </select>
+                </label>
+                <label>目标 IP
+                  <input id="rangeDestinationIp" placeholder="留空表示分析全部目标 IP" />
+                </label>
+                <label>目标 IP 匹配方式
+                  <select id="rangeDestinationIpMode">
+                    <option value="exact">精确匹配</option>
+                    <option value="prefix">前缀匹配</option>
+                  </select>
+                </label>
+                <label>屏蔽来源 IP / 前缀
+                  <input id="rangeExcludeIps" placeholder="例如 192,10.0，多个用逗号分隔" />
+                </label>
+                <label>分析条数上限
+                  <input id="rangeSize" type="number" value="200" min="1" max="10000" />
+                </label>
+              </div>
+              <div class="row">
+                <button id="rangeAnalyzeBtn">开始自定义时间分析</button>
+                <button id="useSearchConditionsBtn" class="secondary-btn">使用当前查询条件</button>
+              </div>
+              <div id="rangeStatus" class="status-banner status-neutral">等待自定义时间分析。</div>
+              <div id="rangeMeta" class="meta chips"></div>
+              <div class="summary-panel">
+                <h3>自定义时间 AI 总结</h3>
+                <div id="rangeSummary" class="summary-content empty-state">尚未执行自定义时间分析。</div>
+              </div>
+              <div class="section-subhead">
+                <h3>本次分析日志</h3>
+                <span class="muted">可展开查看完整原始日志内容</span>
+              </div>
+              <div id="rangeLogsResult" class="result-list empty-state">尚未执行自定义时间分析。</div>
+            </div>
+
+            <div class="subsection">
+              <div class="section-subhead">
+                <h3>已选日志分析</h3>
+                <span class="muted">对日志查询页勾选的日志直接生成 AI 总结</span>
+              </div>
+              <div class="row">
+                <button id="analyzeSelectedFromAiBtn">分析已选日志</button>
+                <button id="clearSelectedFromAiBtn" class="secondary-btn">清空已选</button>
+              </div>
+              <div id="selectedAnalysisStatus" class="status-banner status-neutral">等待已选日志分析。</div>
+              <div id="selectedAnalysisMeta" class="meta chips"></div>
+              <div class="summary-panel">
+                <h3>已选日志 AI 总结</h3>
+                <div id="selectedSummary" class="summary-content empty-state">尚未分析已选日志。</div>
+              </div>
+            </div>
+
+            <div class="subsection">
+              <div class="section-subhead">
+                <h3>AI 连接状态</h3>
+                <span class="muted">可查看当前 AI 配置，并发送一条测试消息验证连通性</span>
+              </div>
+              <div class="row">
+                <label class="grow">测试消息
+                  <textarea
+                    id="aiTestMessage"
+                    rows="3"
+                    placeholder="输入要发送给 AI 的测试消息"
+                  >这是一次连接测试，请用简体中文简短回复“AI连接正常”。</textarea>
+                </label>
+              </div>
+              <div class="row">
+                <button id="aiTestBtn" class="secondary-btn">测试 AI 连接</button>
+              </div>
+              <div id="aiStatus" class="status-banner status-neutral">AI 状态加载中...</div>
+              <div id="aiMeta" class="meta chips"></div>
+              <div class="summary-panel">
+                <h3>AI 测试消息</h3>
+                <div id="aiTestRequest" class="summary-content empty-state">尚未发送测试消息。</div>
+              </div>
+              <div class="summary-panel">
+                <h3>AI 测试回复</h3>
+                <div id="aiTestResponse" class="summary-content empty-state">尚未发送测试消息。</div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section id="cleanupView" class="view-panel is-hidden">
+          <div class="card">
+            <div class="section-head">
+              <div>
+                <h2>删除日志</h2>
+                <p class="section-desc">支持删除指定时间之前的日志，也可附带来源 IP 精确或前缀筛选。</p>
+              </div>
+            </div>
+
+            <div class="grid">
+              <label>删除此时间之前的日志
+                <input id="deleteBefore" type="datetime-local" />
+              </label>
+              <label>来源 IP
+                <input id="deleteIp" placeholder="留空表示不按来源 IP 限制" />
+              </label>
+              <label>来源 IP 匹配方式
+                <select id="deleteIpMode">
+                  <option value="exact">精确匹配</option>
+                  <option value="prefix">前缀匹配</option>
+                </select>
+              </label>
+            </div>
+            <div class="row">
+              <button id="deleteLogsBtn" class="danger-btn">删除符合条件的日志</button>
+            </div>
+            <div id="deleteStatus" class="status-banner status-neutral">等待日志清理操作。</div>
+          </div>
+        </section>
+      </section>
+    </div>
+  </main>
+
+  <script src="/static/app.js?v={{ asset_version }}"></script>
+</body>
+</html>

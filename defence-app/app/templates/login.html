@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Defence App - 登录</title>
+  <link rel="stylesheet" href="/static/login.css?v={{ asset_version }}" />
+</head>
+<body>
+  <main class="login-page">
+    <section class="left-panel">
+      <header class="brand">
+        <span class="brand-icon">✦</span>
+        <span class="brand-text">Defence App</span>
+      </header>
+
+      <div class="characters-wrap">
+        <div id="characterScene" class="characters-scene">
+          <div id="purpleCharacter" class="character purple">
+            <div id="purpleEyes" class="eyes two-eyes">
+              <div class="eyeball" data-eyeball="purple-left"><div class="pupil"></div></div>
+              <div class="eyeball" data-eyeball="purple-right"><div class="pupil"></div></div>
+            </div>
+          </div>
+
+          <div id="blackCharacter" class="character black">
+            <div id="blackEyes" class="eyes two-eyes">
+              <div class="eyeball" data-eyeball="black-left"><div class="pupil"></div></div>
+              <div class="eyeball" data-eyeball="black-right"><div class="pupil"></div></div>
+            </div>
+          </div>
+
+          <div id="orangeCharacter" class="character orange">
+            <div id="orangePupils" class="eyes two-pupils">
+              <div class="raw-pupil" data-pupil="orange-left"></div>
+              <div class="raw-pupil" data-pupil="orange-right"></div>
+            </div>
+          </div>
+
+          <div id="yellowCharacter" class="character yellow">
+            <div id="yellowPupils" class="eyes two-pupils">
+              <div class="raw-pupil" data-pupil="yellow-left"></div>
+              <div class="raw-pupil" data-pupil="yellow-right"></div>
+            </div>
+            <div id="yellowMouth" class="mouth"></div>
+          </div>
+        </div>
+      </div>
+
+      <footer class="left-footer">
+        <a href="#">隐私政策</a>
+        <a href="#">服务条款</a>
+        <a href="#">联系我们</a>
+      </footer>
+    </section>
+
+    <section class="right-panel">
+      <div class="form-box">
+        <div class="mobile-brand">
+          <span class="brand-icon dark">✦</span>
+          <span class="brand-text dark">Defence App</span>
+        </div>
+
+        <div class="form-head">
+          <h1>欢迎回来</h1>
+          <p>请输入账号信息登录系统</p>
+        </div>
+
+        {% if error_message %}
+        <div class="error-banner">{{ error_message }}</div>
+        {% endif %}
+
+        <form id="loginForm" method="post" action="/login">
+          <label class="field-label" for="email">邮箱</label>
+          <input
+            id="email"
+            name="email"
+            type="email"
+            value=""
+            placeholder="请输入邮箱"
+            autocomplete="off"
+            required
+          />
+
+          <label class="field-label" for="password">密码</label>
+          <div class="password-wrap">
+            <input
+              id="password"
+              name="password"
+              type="password"
+              placeholder="请输入密码"
+              required
+            />
+            <button id="togglePasswordBtn" type="button" class="toggle-password">显示</button>
+          </div>
+
+          <div class="form-row">
+            <label class="remember-wrap">
+              <input id="remember" name="remember" type="checkbox" />
+              <span>记住 30 天</span>
+            </label>
+            <a href="#" class="link-btn">忘记密码？</a>
+          </div>
+
+          <button id="submitBtn" class="submit-btn" type="submit">登录</button>
+        </form>
+      </div>
+    </section>
+  </main>
+
+  <script src="/static/login.js?v={{ asset_version }}"></script>
+</body>
+</html>
